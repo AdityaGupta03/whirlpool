@@ -1,6 +1,6 @@
 # Whirlpool - A C++ Library for Maelstrom
 
-This library provides a C++ interface for building distributed systems that can be tested with Maelstrom.
+This library provides a C++ interface for building distributed systems that can be tested with Maelstrom. It was inspired to solve the challenges listed on [Fly.io Distributed System Challenges](https://fly.io/dist-sys/).
 
 ## Alternative Implementations
 
