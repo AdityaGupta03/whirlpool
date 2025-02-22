@@ -5,11 +5,14 @@
 
 # Build directories
 build/
-Debug/
-Release/
+.cache/*
 
 # IDE specific files
-.zed/
+compile_commands.json
+
+# Maelstrom exectuable/logs
+deps/
+store/
 
 # CMake
 CMakeCache.txt
