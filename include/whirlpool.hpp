@@ -131,6 +131,7 @@ public:
     std::string get_id() {
         return id_;
     }
+
 private:
     std::string id_;
     bool running_;

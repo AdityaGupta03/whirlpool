@@ -1,7 +1,7 @@
 /**
  * @file uuid.cpp
  * @author Aditya Gupta (Github: AdityaGupta03)
- * @brief Solution to the Fly.io Unique ID Generation Challenge using the Maelstrom C++ library
+ * @brief Solution to the Fly.io Unique ID Generation Challenge using my Maelstrom C++ library
  * @date 2024-02
  *
  * References:
