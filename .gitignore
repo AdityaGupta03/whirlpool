@@ -5,7 +5,7 @@
 
 # Build directories
 build/
-.cache/*
+.cache/
 
 # IDE specific files
 compile_commands.json
@@ -13,6 +13,7 @@ compile_commands.json
 # Maelstrom exectuable/logs
 deps/
 store/
+maelstrom
 
 # CMake
 CMakeCache.txt
