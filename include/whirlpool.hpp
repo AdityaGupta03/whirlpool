@@ -91,8 +91,6 @@ public:
 
                 json response;
                 response["type"] = "init_ok";
-                response["in_reply_to"] = req_body["msg_id"];
-                response["msg_id"] = next_msg_id_++;
 
                 reply(msg, response);
             });
@@ -101,6 +99,10 @@ public:
     void reply(const Message& msg, json& res) {
         if (!res.contains("msg_id")) {
             res["msg_id"] = next_msg_id_++;
+        }
+
+        if (!res.contains("in_reply_to")) {
+            res["in_reply_to"] = msg.body["msg_id"];
         }
 
         json response = {
@@ -124,6 +126,10 @@ public:
 
     void register_handler(const std::string& msg_type, HandlerFunc handler) {
         handlers_[msg_type] = handler;
+    }
+
+    std::string get_id() {
+        return id_;
     }
 private:
     std::string id_;
