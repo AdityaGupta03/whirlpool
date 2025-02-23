@@ -1,5 +1,5 @@
 /**
- * @file main.cpp
+ * @file echo.cpp
  * @author Aditya Gupta (Github: AdityaGupta03)
  * @brief Solution to the Fly.io Echo Challenge using the Maelstrom C++ library
  * @date 2024-02
