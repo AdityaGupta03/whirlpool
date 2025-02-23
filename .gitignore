@@ -7,8 +7,9 @@
 build/
 .cache/
 
-# IDE specific files
+# IDE/Developer Specific
 compile_commands.json
+.DS_Store
 
 # Maelstrom exectuable/logs
 deps/
