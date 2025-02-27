@@ -31,15 +31,6 @@ int main() {
         node.writeToStdout(res);
     });
 
-    // node.register_handler("echo", [&node](const Message& msg) -> void {
-    //     json response;
-    //     response["type"] = "echo_ok";
-    //     response["echo"] = msg.body["echo"];
-    //     response["in_reply_to"] = msg.body["msg_id"];
-
-    //     node.reply(msg, response);
-    // });
-
     // Start processing loop
     node.run();
     return 0;
