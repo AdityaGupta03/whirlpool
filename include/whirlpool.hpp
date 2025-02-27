@@ -1,117 +1,139 @@
 /**
- * @file maelstrom.hpp
- * @author Aditya Gupta (Github: AdityaGupta03)
- * @brief A C++ library/impl for working with Maelstrom
- * @date 2024-02
+ * @file whirlpool.hpp
+ * @brief A C++ library for working with Maelstrom distributed systems testing framework
+ * @author Aditya Gupta
+ * @copyright 2024 MIT License
  *
- * @details This software provides a high-level interface for implementing
- * distributed system nodes that can be tested using the Maelstrom framework. It
- * handles message serialization, node communication, and error handling,
- * allowing developers to focus on implementing distributed algorithms.
- *
- * Note: This is an independent implementation of a client library for use with
- * Maelstrom (https://github.com/jepsen-io/maelstrom). Maelstrom itself is
- * licensed under the Eclipse Public License and provides its own C++
- * interface implementation. This library is an alternative implementation and
- * is not affiliated with or endorsed by the Maelstrom project.
- *
- * Dependencies:
- *  - nlohmann/json (https://github.com/nlohmann/json)
- *
- * References/Related:
- *  - Maelstrom (https://github.com/jepsen-io/maelstrom)
- *  - Maelstrom C++ Impl (https://github.com/jepsen-io/maelstrom/tree/main/demo/c%2B%2B)
- *  - Fly.io Distributed Systems Challenge (https://fly.io/dist-sys)
- *
- * @copyright Copyright (c) 2024 Aditya Gupta
- *
- * MIT License
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Core functionality for implementing distributed system nodes compatible with
+ * the Maelstrom testing framework. See README.md for detailed documentation.
+ * Provides the node and message classes, as well as utility functions for working
+ * with JSON.
  */
 
-#ifndef CPP_WHIRLPOOL_HPP
-#define CPP_WHIRLPOOL_HPP
+#ifndef WHIRLPOOL_WHIRLPOOL_HPP_
+#define WHIRLPOOL_WHIRLPOOL_HPP_
 
 #include <functional>
 #include <iostream>
 #include <nlohmann/json.hpp>
-#include <ostream>
 #include <string>
-#include <unordered_map>
+#include <unordered_set>
 
 namespace whirlpool {
 
 using json = nlohmann::json;
 
+template<typename BodyType = json>
 struct Message {
   std::string src;
   std::string dest;
-  nlohmann::json body;
-
-  std::string type() const {
-    return body.contains("type") ? body["type"].get<std::string>() : "";
-  }
+  BodyType body;
 };
 
-inline Message json_to_msg(const json &raw_json) {
-    return Message{
+template<typename T>
+Message<T> jsonToMsg(const json& raw_json) {
+    return Message<T>{
         .src=raw_json["src"].get<std::string>(),
         .dest=raw_json["dest"].get<std::string>(),
-        .body=raw_json["body"]
+        .body=raw_json["body"].get<T>()
     };
 }
 
-using HandlerFunc = std::function<void(const Message &)>;
+template<typename T>
+json msgToJson(const Message<T>& msg) {
+    json raw_json = {
+        {"src", msg.src},
+        {"dest", msg.dest},
+        {"body", msg.body}
+    };
+
+    return raw_json;
+}
+
+struct InitBody {
+    std::string type{"init"};
+    uint64_t msg_id;
+    std::string node_id;
+    std::unordered_set<std::string> node_ids;
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(InitBody, type, msg_id, node_id, node_ids);
+};
+
+struct InitOkBody {
+    std::string type{"init_ok"};
+    uint64_t msg_id;
+    uint64_t in_reply_to;
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(InitOkBody, type, msg_id, in_reply_to);
+};
+
+struct EchoBody {
+    std::string type{"echo"};
+    uint64_t msg_id;
+    std::string echo;
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(EchoBody, type, msg_id, echo);
+};
+
+struct EchoOkBody {
+    std::string type{"echo_ok"};
+    uint64_t msg_id;
+    uint64_t in_reply_to;
+    std::string echo;
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(EchoOkBody, type, msg_id, in_reply_to, echo);
+};
+
+struct GenerateBody {
+    std::string type{"generate_ok"};
+    uint64_t msg_id;
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(GenerateBody, type, msg_id);
+};
+
+struct GenerateOkBody {
+    std::string type{"generate_ok"};
+    uint64_t msg_id;
+    uint64_t in_reply_to;
+    std::string id;
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(GenerateOkBody, type, msg_id, in_reply_to, id);
+};
 
 class Node {
 public:
-    Node()
-        : next_msg_id_(1), running_(false) {
-            // Register init function
-            register_handler("init", [this](const Message &msg) {
-                json req_body = msg.body;
-                id_ = req_body["node_id"].get<std::string>();
+    Node() : next_msg_id_(1), running_(false) {
+        // Register init function
+        registerHandler<InitBody>("init", [this](const Message<InitBody>& msg) {
+            id_ = msg.body.node_id;
 
-                json response;
-                response["type"] = "init_ok";
+            InitOkBody res_body = {
+                "init_ok",
+                reserveMsgID(),
+                msg.body.msg_id,
+            };
 
-                reply(msg, response);
-            });
+            Message<InitOkBody> res = {
+                .src = id_,
+                .dest = msg.src,
+                .body = res_body
+            };
+
+            writeToStdout(res);
+        });
     }
 
-    void reply(const Message& msg, json& res) {
-        if (!res.contains("msg_id")) {
-            res["msg_id"] = next_msg_id_++;
-        }
-
-        if (!res.contains("in_reply_to")) {
-            res["in_reply_to"] = msg.body["msg_id"];
-        }
-
-        json response = {
-            {"src", id_},
-            {"dest", msg.src},
-            {"body", res}
+    template<typename T>
+    void registerHandler(const std::string& msg_type, std::function<void(const Message<T>&)> handler) {
+        handlers_[msg_type] = [handler](const json& raw_json) {
+            Message<T> msg = jsonToMsg<T>(raw_json);
+            handler(msg);
         };
+    }
 
-        std::cout << response.dump() << std::endl;
+    template<typename T>
+    void writeToStdout(const Message<T>& response) {
+        std::cout << msgToJson(response).dump() << std::endl;
     }
 
     void run() {
@@ -119,32 +141,41 @@ public:
 
         std::string raw_msg;
         while (running_ && std::getline(std::cin, raw_msg)) {
-            json raw_json = json::parse(raw_msg);
-            handle_message(raw_json);
+            try {
+                json raw_json = json::parse(raw_msg);
+                handleMessage(raw_json);
+            } catch (const std::exception& e) {
+                std::cerr << "Failed to parse message: " << e.what() << std::endl;
+            }
         }
     }
 
-    void register_handler(const std::string& msg_type, HandlerFunc handler) {
-        handlers_[msg_type] = handler;
+    std::string getID() {
+        return id_;
     }
 
-    std::string get_id() {
-        return id_;
+    uint64_t reserveMsgID() {
+        return next_msg_id_++;
     }
 
 private:
     std::string id_;
     bool running_;
     uint64_t next_msg_id_;
-    std::unordered_map<std::string, HandlerFunc> handlers_;
+    std::unordered_map<std::string, std::function<void(const json&)> > handlers_;
 
-    void handle_message(json& raw_json) {
-        Message msg = json_to_msg(raw_json);
-        auto it = handlers_.find(msg.type());
+    void handleMessage(json& raw_json) {
+        if (!raw_json.contains("body") || !raw_json["body"].contains("type")) {
+            std::cerr << "Invalid message format: missing 'type'" << std::endl;
+            std::cerr << "Message: " << raw_json.dump() << std::endl;
+            return;
+        }
+
+        auto it = handlers_.find(raw_json["body"]["type"]);
         if (it != handlers_.end()) {
-            it->second(msg);
+            it->second(raw_json);
         } else {
-            std::cerr << "Unhandled message type: " << msg.type() << std::endl;
+            std::cerr << "Unhandled message type: " << raw_json["type"] << std::endl;
             std::cerr << "Message: " << raw_json.dump() << std::endl;
         }
     }
@@ -152,4 +183,4 @@ private:
 
 } // namespace whirlpool
 
-#endif // CPP_WHIRLPOOL_HPP
+#endif // WHIRLPOOL_WHIRLPOOL_HPP_

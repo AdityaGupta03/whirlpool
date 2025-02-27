@@ -11,6 +11,7 @@
 #include "whirlpool.hpp"
 #include <chrono>
 #include <cstdint>
+#include <sstream>
 
 using namespace whirlpool;
 
@@ -21,9 +22,7 @@ int main() {
     Node node;
 
     // Register generate handler
-    node.register_handler("generate", [&node](const Message& msg) -> void {
-        json response;
-
+    node.registerHandler<GenerateBody>("generate", [&node](const Message<GenerateBody>& msg) -> void {
         // Get current timestamp in milliseconds
         long long timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::system_clock::now().time_since_epoch()
@@ -31,7 +30,7 @@ int main() {
 
         // Get the node id of the form nX where X is a number
         // Cap the node id number to at most 8 bits
-        std::string node_id = node.get_id().substr(1);
+        std::string node_id = node.getID().substr(1);
         uint8_t node_bits = std::stoul(node_id) & 0xFF;
 
         // Generate next sequence number capped at 8 bits
@@ -41,10 +40,23 @@ int main() {
         // Format: [timestamp(48 bit)][node_id(8 bits)][sequence(8 bits)]
         uint64_t uuid = (timestamp << 16) | (node_bits << 8) | seq;
 
-        response["type"] = "generate_ok";
-        response["id"] = uuid;
+        // Convert uuid to a string for json serialization
+        std::stringstream ss;
+        ss << std::hex << std::setw(16) << std::setfill('0') << uuid;
+        std::string uuid_str = ss.str();
 
-        node.reply(msg, response);
+        GenerateOkBody res_body;
+        res_body.in_reply_to = msg.body.msg_id;
+        res_body.msg_id = node.reserveMsgID();
+        res_body.id = uuid_str;
+
+        Message<GenerateOkBody> res = {
+            node.getID(),
+            msg.src,
+            res_body
+        };
+
+        node.writeToStdout(res);
     });
 
     // Start processing loop

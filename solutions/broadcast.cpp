@@ -10,6 +10,8 @@
 
 #include "whirlpool.hpp"
 
+#include <assert.h>
+
 using namespace whirlpool;
 
 int main() {
@@ -17,25 +19,19 @@ int main() {
     Node node;
 
     // Register broadcast handler
-    node.register_handler("broadcast", [&node](const Message& msg) -> void {
-        json response;
-        response["type"] = "broadcast_ok";
-        node.reply(msg, response);
+    node.registerHandler<json>("broadcast", [&node](const Message<json>& msg) -> void {
+        assert(false && "Broadcast handler not implemented");
     });
 
     // Register read handler
-    node.register_handler("read", [&node](const Message& msg) -> void {
-        json response;
-        response["type"] = "read_ok";
-        node.reply(msg, response);
+    node.registerHandler<json>("read", [&node](const Message<json>& msg) -> void {
+        assert(false && "Read handler not implemented");
     });
 
     // Register topology handler
-        node.register_handler("topology", [&node](const Message& msg) -> void {
-            json response;
-            response["type"] = "topology_ok";
-            node.reply(msg, response);
-        });
+    node.registerHandler<json>("topology", [&node](const Message<json>& msg) -> void {
+        assert(false && "Topology handler not implemented");
+    });
 
     // Start processing loop
     node.run();

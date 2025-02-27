@@ -17,14 +17,28 @@ int main() {
     Node node;
 
     // Register echo handler
-    node.register_handler("echo", [&node](const Message& msg) -> void {
-        json response;
-        response["type"] = "echo_ok";
-        response["echo"] = msg.body["echo"];
-        response["in_reply_to"] = msg.body["msg_id"];
+    node.registerHandler<EchoBody>("echo", [&node](const Message<EchoBody>& msg) -> void {
+        EchoOkBody body;
+        body.msg_id = node.reserveMsgID();
+        body.in_reply_to = msg.body.msg_id;
+        body.echo = msg.body.echo;
 
-        node.reply(msg, response);
+        Message<EchoOkBody> res;
+        res.src = node.getID();
+        res.dest = msg.src;
+        res.body = body;
+
+        node.writeToStdout(res);
     });
+
+    // node.register_handler("echo", [&node](const Message& msg) -> void {
+    //     json response;
+    //     response["type"] = "echo_ok";
+    //     response["echo"] = msg.body["echo"];
+    //     response["in_reply_to"] = msg.body["msg_id"];
+
+    //     node.reply(msg, response);
+    // });
 
     // Start processing loop
     node.run();
